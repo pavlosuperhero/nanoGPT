@@ -1,0 +1,278 @@
+#+title: Nano GPT Reproduce docs
+#+author: Pavlo Fabuliak
+#+options: toc:2
+
+
+* List of contents :toc:
+- [[#preparation][Preparation]]
+- [[#theory][Theory]]
+  - [[#general-tokinization-process][General tokinization process]]
+  - [[#tokenize-with-internal-libs][Tokenize with internal libs]]
+  - [[#training-data-preparation-using-pytorch][Training data preparation, using pyTorch]]
+
+* Preparation
+#+begin_src bash
+wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
+#+end_src
+
+* Theory
+** General tokinization process
+#+begin_src python :results output :session *nanoGPT*
+with open('input.txt', 'r', encoding='utf-8') as f:
+    text = f.read()
+    
+def printDs():    
+    print('Length of dataset in characters', len(text))
+    print(text[:1000])
+
+
+chars = sorted(list(set(text))) #get all unique chars
+vocab_size = len(chars) #counting them
+
+def printFn():
+    print(''.join(chars))
+    print(vocab_size)
+    
+stoi = { ch:i for i,ch in enumerate(chars) }
+itos = { i:ch for i,ch in enumerate(chars) }
+encode = lambda s: [stoi[c] for c in s] #take a string, output a list of integers
+decode = lambda l: ''.join([itos[i] for i in l]) #take a list of intefers, output a string
+
+print(encode("hii there"))
+print(decode(encode("hii there")))
+#+end_src
+
+#+RESULTS:
+: [46, 47, 47, 1, 58, 46, 43, 56, 43]
+: hii there
+
+** Tokenize with internal libs
+*** Prepare org
+#+begin_src emacs-lisp :results silent
+(setq-local python-shell-interpreter (expand-file-name ".venv/bin/python")
+            org-babel-python-command (expand-file-name ".venv/bin/python"))
+#+end_src
+
+*** Tiktoken
+#+begin_src python :results output :session *nanoGPT*
+import tiktoken
+enc = tiktoken.get_encoding('gpt2')
+print(enc.encode(text))
+print(enc.decode(text)[:1000])
+#+end_src
+
+*** PyTorch
+#+begin_src python :results output :session *nanoGPT*
+import torch
+    
+data = torch.tensor(encode(text), dtype=torch.long)
+print(data.shape, data.dtype)
+print(data[:1000])
+#+end_src
+
+** Training data preparation, using pyTorch
+*** Prepare org
+#+begin_src emacs-lisp :results silent
+(setq-local python-shell-interpreter (expand-file-name ".venv/bin/python")
+            org-babel-python-command (expand-file-name ".venv/bin/python"))
+#+end_src
+
+*** Chunk entire data into chunks 8 char long
+#+begin_src python :results output :session *nanoGPT-Training*
+import torch
+    
+with open('input.txt', 'r', encoding='utf-8') as f:
+    text = f.read()
+    
+chars = sorted(list(set(text))) #get all unique chars
+vocab_size = len(chars) #counting them
+
+stoi = { ch:i for i,ch in enumerate(chars) }
+itos = { i:ch for i,ch in enumerate(chars) }
+encode = lambda s: [stoi[c] for c in s] #take a string, output a list of integers
+decode = lambda l: ''.join([itos[i] for i in l]) #take a list of intefers, output a string
+
+data = torch.tensor(encode(text), dtype=torch.long)
+
+n = int(0.9*len(data))
+block_size = 8
+train_data = data[:n]
+val_data = data[n:]
+train_data[:block_size+1]
+
+x = train_data[:block_size]
+y = train_data[1:block_size+1]
+for t in range(block_size):
+    context = x[:t+1]
+    target = y[t]
+    print(f"when input is {context} the target: {target}")
+#+end_src
+
+#+RESULTS:
+: when input is tensor([18]) the target: 47
+: when input is tensor([18, 47]) the target: 56
+: when input is tensor([18, 47, 56]) the target: 57
+: when input is tensor([18, 47, 56, 57]) the target: 58
+: when input is tensor([18, 47, 56, 57, 58]) the target: 1
+: when input is tensor([18, 47, 56, 57, 58,  1]) the target: 15
+: when input is tensor([18, 47, 56, 57, 58,  1, 15]) the target: 47
+: when input is tensor([18, 47, 56, 57, 58,  1, 15, 47]) the target: 58
+
+*** Training sequences
+#+begin_src python :results output :session *nanoGPT-Training*
+torch.manual_seed(1337)
+batch_size = 4 # How many independent sequences will we process in parallel
+block_size = 8 # What is the maximum context lenght for predictions
+
+def get_batch(split):
+    # Generate small batch of data of inputs x and targets y
+    data = train_data if split == 'train' else val_data
+    ix = torch.randint(len(data) - block_size, (batch_size, ))
+    x = torch.stack([data[i:i+block_size] for i in ix])
+    y = torch.stack([data[i+1:i+block_size+1] for i in ix])
+    return x, y
+
+xb, yb = get_batch('train')
+print('inputs:')
+print(xb.shape)
+print(xb)
+print('target:')
+print(yb.shape)
+print(yb)
+
+print('---')
+for b in range(batch_size):
+    for t in range(block_size):
+        context = xb[b, :t+1]
+        target = yb[b, t]
+        print(f"When inputs is {context.tolist()} the target: {target}")
+#+end_src
+
+#+RESULTS:
+#+begin_example
+inputs:
+torch.Size([4, 8])
+tensor([[24, 43, 58,  5, 57,  1, 46, 43],
+        [44, 53, 56,  1, 58, 46, 39, 58],
+        [52, 58,  1, 58, 46, 39, 58,  1],
+        [25, 17, 27, 10,  0, 21,  1, 54]])
+target:
+torch.Size([4, 8])
+tensor([[43, 58,  5, 57,  1, 46, 43, 39],
+        [53, 56,  1, 58, 46, 39, 58,  1],
+        [58,  1, 58, 46, 39, 58,  1, 46],
+        [17, 27, 10,  0, 21,  1, 54, 39]])
+---
+When inputs is [24] the target: 43
+When inputs is [24, 43] the target: 58
+When inputs is [24, 43, 58] the target: 5
+When inputs is [24, 43, 58, 5] the target: 57
+When inputs is [24, 43, 58, 5, 57] the target: 1
+When inputs is [24, 43, 58, 5, 57, 1] the target: 46
+When inputs is [24, 43, 58, 5, 57, 1, 46] the target: 43
+When inputs is [24, 43, 58, 5, 57, 1, 46, 43] the target: 39
+When inputs is [44] the target: 53
+When inputs is [44, 53] the target: 56
+When inputs is [44, 53, 56] the target: 1
+When inputs is [44, 53, 56, 1] the target: 58
+When inputs is [44, 53, 56, 1, 58] the target: 46
+When inputs is [44, 53, 56, 1, 58, 46] the target: 39
+When inputs is [44, 53, 56, 1, 58, 46, 39] the target: 58
+When inputs is [44, 53, 56, 1, 58, 46, 39, 58] the target: 1
+When inputs is [52] the target: 58
+When inputs is [52, 58] the target: 1
+When inputs is [52, 58, 1] the target: 58
+When inputs is [52, 58, 1, 58] the target: 46
+When inputs is [52, 58, 1, 58, 46] the target: 39
+When inputs is [52, 58, 1, 58, 46, 39] the target: 58
+When inputs is [52, 58, 1, 58, 46, 39, 58] the target: 1
+When inputs is [52, 58, 1, 58, 46, 39, 58, 1] the target: 46
+When inputs is [25] the target: 17
+When inputs is [25, 17] the target: 27
+When inputs is [25, 17, 27] the target: 10
+When inputs is [25, 17, 27, 10] the target: 0
+When inputs is [25, 17, 27, 10, 0] the target: 21
+When inputs is [25, 17, 27, 10, 0, 21] the target: 1
+When inputs is [25, 17, 27, 10, 0, 21, 1] the target: 54
+When inputs is [25, 17, 27, 10, 0, 21, 1, 54] the target: 39
+#+end_example
+
+*** Feed dataset to BigramLanguageModel
+#+begin_src python :results output :session *nanoGPT-Training*
+import torch.nn as nn
+from torch.nn import functional as F
+
+torch.manual_seed(1337)
+
+class BigramLanguageModel(nn.Module):
+
+    def __init__(self, vocab_size):
+        super().__init__()
+        self.token_embedding_table = nn.Embedding(vocab_size, vocab_size)
+
+    def forward(self, idx, targets=None):
+        logits = self.token_embedding_table(idx)
+        if targets is None:
+            loss = None
+        else:
+            B, T, C = logits.shape
+            logits = logits.view(B*T, C)
+            targets = targets.view(B*T)
+            loss = F.cross_entropy(logits, targets)
+        return logits, loss
+    
+    def generate(self, idx, max_new_tokens):
+        for _ in range(max_new_tokens):
+            logits, loss = self(idx)
+            logits = logits[:, -1, :]
+            probs = F.softmax(logits, dim=-1)
+            idx_next = torch.multinomial(probs, num_samples=1)
+            idx = torch.cat((idx, idx_next), dim=1)
+        return idx
+
+m = BigramLanguageModel(vocab_size)
+logits, loss = m(xb, yb)
+print(logits.shape)
+print(loss)
+print(decode(m.generate(torch.zeros((1,1), dtype=torch.long), max_new_tokens=100)[0].tolist()))
+#+end_src
+
+#+RESULTS:
+: torch.Size([32, 65])
+: tensor(4.8786, grad_fn=<NllLossBackward0>)
+: 
+: SKIcLT;AcELMoTbvZv C?nq-QE33:CJqkOKH-q;:la!oiywkHjgChzbQ?u!3bLIgwevmyFJGUGp
+: wnYWmnxKWWev-tDqXErVKLgJ
+
+*** PyTorch Optimizer
+**** Optimization
+#+begin_src python :results output :session *nanoGPT-Training*
+optimizer = torch.optim.AdamW(m.parameters(), lr=1e-3)
+batch_size = 32
+for steps in range(100000):
+    xb, yb = get_batch('train')
+    logits, loss = m(xb, yb)
+    optimizer.zero_grad(set_to_none=True)
+    loss.backward()
+    optimizer.step()
+    
+print(loss.item())
+
+#+end_src
+
+#+RESULTS:
+: 2.434809923171997
+**** After optimization
+#+begin_src python :results output :session *nanoGPT-Training*
+print(decode(m.generate(torch.zeros((1,1), dtype=torch.long), max_new_tokens=500)[0].tolist()))
+#+end_src
+
+#+RESULTS:
+: 
+: 
+: 
+: ASIOMul ofr KI ctowit sesho w
+: Wherbur ndos fak's oureatwh s
+: Th,
+: Isthealerubed;
+: Whin woloprd ara as
