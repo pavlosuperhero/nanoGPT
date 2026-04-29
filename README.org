@@ -330,3 +330,52 @@ print(decode(m.generate(torch.zeros((1,1), dtype=torch.long), max_new_tokens=500
 : Th,
 : Isthealerubed;
 : Whin woloprd ara as
+
+**** The mathematical trick in self-attention
+#+begin_src python :results output :session *nanoGPT-Training*
+import torch
+from torch.nn import functional as F
+torch.manual_seed(1337)
+B,T,C = 4,8,2
+x = torch.randn(B,T,C)
+
+#Method 1
+xbow = torch.zeros((B,T,C))
+for b in range(B):
+    for t in range(T):
+        xprev = x[b,:t+1]
+        xbow[b,t] = torch.mean(xprev, 0)
+
+#Method 2
+weights = torch.tril(torch.ones(T, T))
+weights = weights / weights.sum(1, keepdim=True)
+xbow2 = weights @ x        
+print(torch.allclose(xbow, xbow2, atol=1e-6))
+
+torch.manual_seed(42)
+a = torch.tril(torch.ones(3, 3))
+a = a / torch.sum(a, 1, keepdim=True)
+b = torch.randint(0,10,(3,2)).float()
+c = a @ b
+
+#print('a=', end='')
+#print(a)
+#print('--')
+#print('b=', end='')
+#print(b)
+#print('--')
+#print('c=', end='')
+#print(c)
+
+#Method 3
+tril = torch.tril(torch.ones(T,T))
+weight = torch.zeros((T, T))
+weight = weight.masked_fill(tril==0, float('-inf'))
+weight = F.softmax(weight, dim=-1)
+xbow3 = weight @ x
+print(torch.allclose(xbow, xbow3, atol=1e-6))
+#+end_src
+
+#+RESULTS:
+: True
+: True
