@@ -1,6 +1,4 @@
-from torch import multinomial as tm
-from torch import cat as tc
-from torch import manual_seed as tmseed
+import torch
 import torch.nn as nn
 from torch.nn import functional as F
 import logging
@@ -9,7 +7,7 @@ class BigramLanguageModel(nn.Module):
     def __init__(self, vocab_size: int, torch_manual_seed: int = 1337):
         super().__init__()
         self.logger = logging.getLogger(self.__class__.__name__)
-        tmseed(torch_manual_seed)
+        torch.manual_seed(torch_manual_seed)
         self.token_embedding_table = nn.Embedding(vocab_size, vocab_size)
 
     def forward(self, idx, targets=None):
@@ -29,11 +27,11 @@ class BigramLanguageModel(nn.Module):
             logits, loss = self(idx)
             logits = logits[:, -1, :]
             probs = F.softmax(logits, dim=-1)
-            idx_next = tm(probs, num_samples=1)
-            idx = tc((idx, idx_next), dim=1)
+            idx_next = torch.multinomial(probs, num_samples=1)
+            idx = torch.cat((idx, idx_next), dim=1)
         return idx
 
-    def print_model(self, data):
-        logits, loss = data
-        self.logger.debug(logits.shape)
-        self.logger.debug(loss)
+    def print_model(self, xb, yb):
+        logits, loss = self(xb, yb)
+        self.logger.debug(f"Logits shape: {logits.shape}")
+        self.logger.debug(f"Loss value: {loss.item()}")
