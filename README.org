@@ -5,10 +5,19 @@
 
 * List of contents :toc:
 - [[#preparation][Preparation]]
-- [[#theory][Theory]]
-  - [[#general-tokinization-process][General tokinization process]]
-  - [[#tokenize-with-internal-libs][Tokenize with internal libs]]
-  - [[#training-data-preparation-using-pytorch][Training data preparation, using pyTorch]]
+- [[#architecture-overview][Architecture Overview]]
+- [[#phase-1-tokenization--vocabulary-mapping][Phase 1: Tokenization & Vocabulary Mapping]]
+  - [[#implementation][Implementation]]
+  - [[#scientific-context][Scientific Context]]
+- [[#phase-2-embedding--spatial-projection][Phase 2: Embedding & Spatial Projection]]
+  - [[#implementation-1][Implementation]]
+  - [[#scientific-context--mathematics][Scientific Context & Mathematics]]
+- [[#phase-3-the-self-attention-mechanism-contextual-mixing][Phase 3: The Self-Attention Mechanism (Contextual Mixing)]]
+  - [[#implementation-mathematical-trick][Implementation (Mathematical Trick)]]
+  - [[#scientific-context--mathematics-1][Scientific Context & Mathematics]]
+- [[#phase-4-linear-decoding--autoregressive-generation][Phase 4: Linear Decoding & Autoregressive Generation]]
+  - [[#implementation-2][Implementation]]
+  - [[#scientific-context-1][Scientific Context]]
 
 * Preparation
 #+begin_src bash
@@ -17,365 +26,111 @@ wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakesp
 
 #+RESULTS:
 
-* Theory
-** General tokinization process
+* Architecture Overview
+This repository tracks the implementation of a micro-scale Generative Pre-trained Transformer (GPT). The system is designed as a spatial pipeline that digitizes discrete text, projects it into a continuous high-dimensional manifold, mixes contextual information via self-attention, and decodes the result back into vocabulary probabilities.
+
+* Phase 1: Tokenization & Vocabulary Mapping
+Before computation begins, raw text must be digitized. Tokens are discrete indices mapped to a vocabulary space. They do not carry semantic meaning at this stage; they are strictly spatial pointers.
+
+** Implementation
 #+begin_src python :results output :session *nanoGPT*
 with open('input.txt', 'r', encoding='utf-8') as f:
     text = f.read()
-    
-def printDs():    
-    print('Length of dataset in characters', len(text))
-    print(text[:1000])
 
-# Extract all unique characters from the text to form the vocabulary
 chars = sorted(list(set(text))) 
 vocab_size = len(chars)
 
-def printFn():
-    print(''.join(chars))
-    print(vocab_size)
-    
-# Create spatial lookup tables: Character-to-Integer (stoi) and Integer-to-Character (itos)
+# Spatial lookup tables for encoding/decoding
 stoi = { ch:i for i,ch in enumerate(chars) }
 itos = { i:ch for i,ch in enumerate(chars) }
 
-# Define encoders/decoders. 
-# encode: translates a string into a list of integers based on the 'stoi' mapping
-encode = lambda s: [stoi[c] for c in s] 
-# decode: translates a list of integers back into a string using the 'itos' mapping
-decode = lambda l: ''.join([itos[i] for i in l]) 
-
-print(encode("hii there"))
-print(decode(encode("hii there")))
-#+end_src
-
-#+RESULTS:
-: [46, 47, 47, 1, 58, 46, 43, 56, 43]
-: hii there
-
-** Tokenize with internal libs
-*** Prepare org
-#+begin_src emacs-lisp :results silent
-(setq-local python-shell-interpreter (expand-file-name ".venv/bin/python")
-            org-babel-python-command (expand-file-name ".venv/bin/python"))
-#+end_src
-
-*** Tiktoken
-#+begin_src python :results output :session *nanoGPT*
-import tiktoken
-# Load OpenAI's BPE (Byte Pair Encoding) tokenizer used for GPT-2
-enc = tiktoken.get_encoding('gpt2')
-print(enc.encode(text))
-print(enc.decode(text)[:1000])
-#+end_src
-
-*** PyTorch
-#+begin_src python :results output :session *nanoGPT*
-import torch
-    
-# Convert the 1D list of encoded integers into a 1D PyTorch tensor.
-# dtype=torch.long is required for integer indices used in PyTorch embeddings.
-data = torch.tensor(encode(text), dtype=torch.long)
-print(data.shape, data.dtype)
-print(data[:1000])
-#+end_src
-
-** Training data preparation, using pyTorch
-*** Prepare org
-#+begin_src emacs-lisp :results silent
-(setq-local python-shell-interpreter (expand-file-name ".venv/bin/python")
-            org-babel-python-command (expand-file-name ".venv/bin/python"))
-#+end_src
-
-*** Chunk entire data into chunks 8 char long
-#+begin_src python :results output :session *nanoGPT-Training*
-import torch
-    
-with open('input.txt', 'r', encoding='utf-8') as f:
-    text = f.read()
-    
-chars = sorted(list(set(text))) 
-vocab_size = len(chars) 
-
-stoi = { ch:i for i,ch in enumerate(chars) }
-itos = { i:ch for i,ch in enumerate(chars) }
 encode = lambda s: [stoi[c] for c in s] 
 decode = lambda l: ''.join([itos[i] for i in l]) 
-
-data = torch.tensor(encode(text), dtype=torch.long)
-
-# Split the dataset: 90% for training, 10% for validation (to monitor overfitting)
-n = int(0.9*len(data))
-block_size = 8 # The maximum context length (time dimension 'T') the model will process
-train_data = data[:n]
-val_data = data[n:]
-train_data[:block_size+1]
-
-# Define the input context (x) and the expected output target (y)
-# 'y' is spatially shifted by exactly 1 position to the right compared to 'x'
-x = train_data[:block_size]
-y = train_data[1:block_size+1]
-
-# Demonstrate the autoregressive training structure: 
-# For every step in the block, the model learns to use all previous tokens to predict the next one.
-for t in range(block_size):
-    context = x[:t+1]
-    target = y[t]
-    print(f"when input is {context} the target: {target}")
 #+end_src
 
-#+RESULTS:
-: when input is tensor([18]) the target: 47
-: when input is tensor([18, 47]) the target: 56
-: when input is tensor([18, 47, 56]) the target: 57
-: when input is tensor([18, 47, 56, 57]) the target: 58
-: when input is tensor([18, 47, 56, 57, 58]) the target: 1
-: when input is tensor([18, 47, 56, 57, 58,  1]) the target: 15
-: when input is tensor([18, 47, 56, 57, 58,  1, 15]) the target: 47
-: when input is tensor([18, 47, 56, 57, 58,  1, 15, 47]) the target: 58
+** Scientific Context
+Tokenization is a lossless mapping from a string sequence to an integer space $\mathbb{Z}^{+}$. Advanced production models use Byte Pair Encoding (BPE), a data compression technique that iteratively merges the most frequent pairs of bytes to optimize context window usage.
+- *Documentation*: [[https://github.com/openai/tiktoken][Tiktoken BPE Algorithm]]
 
-*** Training sequences
+* Phase 2: Embedding & Spatial Projection
+Discrete indices lack physical relationship or distance metrics. We project them into an $N$-dimensional continuous space where mathematical distance equals semantic proximity.
+
+** Implementation
 #+begin_src python :results output :session *nanoGPT-Training*
-torch.manual_seed(1337) # Set seed to ensure reproducible random operations
-batch_size = 4 # Number of independent sequences processed simultaneously (Batch dimension 'B')
-block_size = 8 # Context length (Time dimension 'T')
-
-def get_batch(split):
-    # Select the correct data split based on the function argument
-    data = train_data if split == 'train' else val_data
-    
-    # Generate 'batch_size' number of random starting indices within the dataset
-    ix = torch.randint(len(data) - block_size, (batch_size, ))
-    
-    # Extract the context (x) and targets (y) for each random index and stack them into 2D tensors.
-    # The final shape of x and y will be (B, T) -> (batch_size, block_size)
-    x = torch.stack([data[i:i+block_size] for i in ix])
-    y = torch.stack([data[i+1:i+block_size+1] for i in ix])
-    return x, y
-
-xb, yb = get_batch('train')
-print('inputs:')
-print(xb.shape)
-print(xb)
-print('target:')
-print(yb.shape)
-print(yb)
-
-print('---')
-for b in range(batch_size):
-    for t in range(block_size):
-        context = xb[b, :t+1]
-        target = yb[b, t]
-        print(f"When inputs is {context.tolist()} the target: {target}")
-#+end_src
-
-#+RESULTS:
-#+begin_example
-inputs:
-torch.Size([4, 8])
-tensor([[24, 43, 58,  5, 57,  1, 46, 43],
-        [44, 53, 56,  1, 58, 46, 39, 58],
-        [52, 58,  1, 58, 46, 39, 58,  1],
-        [25, 17, 27, 10,  0, 21,  1, 54]])
-target:
-torch.Size([4, 8])
-tensor([[43, 58,  5, 57,  1, 46, 43, 39],
-        [53, 56,  1, 58, 46, 39, 58,  1],
-        [58,  1, 58, 46, 39, 58,  1, 46],
-        [17, 27, 10,  0, 21,  1, 54, 39]])
----
-When inputs is [24] the target: 43
-When inputs is [24, 43] the target: 58
-When inputs is [24, 43, 58] the target: 5
-When inputs is [24, 43, 58, 5] the target: 57
-When inputs is [24, 43, 58, 5, 57] the target: 1
-When inputs is [24, 43, 58, 5, 57, 1] the target: 46
-When inputs is [24, 43, 58, 5, 57, 1, 46] the target: 43
-When inputs is [24, 43, 58, 5, 57, 1, 46, 43] the target: 39
-When inputs is [44] the target: 53
-When inputs is [44, 53] the target: 56
-When inputs is [44, 53, 56] the target: 1
-When inputs is [44, 53, 56, 1] the target: 58
-When inputs is [44, 53, 56, 1, 58] the target: 46
-When inputs is [44, 53, 56, 1, 58, 46] the target: 39
-When inputs is [44, 53, 56, 1, 58, 46, 39] the target: 58
-When inputs is [44, 53, 56, 1, 58, 46, 39, 58] the target: 1
-When inputs is [52] the target: 58
-When inputs is [52, 58] the target: 1
-When inputs is [52, 58, 1] the target: 58
-When inputs is [52, 58, 1, 58] the target: 46
-When inputs is [52, 58, 1, 58, 46] the target: 39
-When inputs is [52, 58, 1, 58, 46, 39] the target: 58
-When inputs is [52, 58, 1, 58, 46, 39, 58] the target: 1
-When inputs is [52, 58, 1, 58, 46, 39, 58, 1] the target: 46
-When inputs is [25] the target: 17
-When inputs is [25, 17] the target: 27
-When inputs is [25, 17, 27] the target: 10
-When inputs is [25, 17, 27, 10] the target: 0
-When inputs is [25, 17, 27, 10, 0] the target: 21
-When inputs is [25, 17, 27, 10, 0, 21] the target: 1
-When inputs is [25, 17, 27, 10, 0, 21, 1] the target: 54
-When inputs is [25, 17, 27, 10, 0, 21, 1, 54] the target: 39
-#+end_example
-
-*** Feed dataset to BigramLanguageModel
-#+begin_src python :results output :session *nanoGPT-Training*
+import torch
 import torch.nn as nn
+
+# Context length (T) and Batch size (B)
+block_size = 8 
+batch_size = 4 
+
+# Projection matrices
+token_embedding_table = nn.Embedding(vocab_size, n_embd)
+position_embedding_table = nn.Embedding(block_size, n_embd)
+#+end_src
+
+** Scientific Context & Mathematics
+The =nn.Embedding= layer acts as a physical lookup table. Mathematically, it performs a spatial projection by multiplying a one-hot encoded vector $x \in \{0,1\}^{|V|}$ by a learnable weight matrix $W \in \mathbb{R}^{|V| \times d_{model}}$.
+
+To prevent the model from becoming spatially blind to sequence order, a positional vector is added to the token vector. The resulting spatial object is physically deformed by its timestamp:
+$$X_{final} = \text{Embedding}(Token) + \text{Embedding}(Position)$$
+
+- *Documentation*: [[https://pytorch.org/docs/stable/generated/torch.nn.Embedding.html][torch.nn.Embedding]]
+
+* Phase 3: The Self-Attention Mechanism (Contextual Mixing)
+Tokens in a sequence are initially isolated. Self-attention acts as a dynamic routing protocol, allowing past tokens to physically bleed their geometric features into future tokens to build contextual awareness.
+
+** Implementation (Mathematical Trick)
+#+begin_src python :results output :session *nanoGPT-Training*
 from torch.nn import functional as F
 
-torch.manual_seed(1337)
+B, T, C = 4, 8, 32
+x = torch.randn(B, T, C)
 
-class BigramLanguageModel(nn.Module):
+# Lower triangular matrix acts as a causal barrier
+tril = torch.tril(torch.ones(T, T))
+weights = torch.zeros((T, T))
 
-    def __init__(self, vocab_size):
-        super().__init__()
-        # A simple lookup table. Each token directly reads its own row (logits) from this table.
-        # Tokens do not communicate with each other yet. Shape: (vocab_size, vocab_size)
-        self.token_embedding_table = nn.Embedding(vocab_size, vocab_size)
+# Apply the spatial mask (futures become -inf)
+weights = weights.masked_fill(tril == 0, float('-inf'))
 
-    def forward(self, idx, targets=None):
-        # idx shape is (B, T). 
-        # logits shape becomes (B, T, C) where C is the channel dimension (vocab_size)
-        logits = self.token_embedding_table(idx)
-        
-        if targets is None:
-            loss = None
-        else:
-            # PyTorch cross_entropy expects the Channel dimension (C) to be the second dimension.
-            # We must spatially flatten the Batch and Time dimensions to create a 2D tensor: (B*T, C)
-            B, T, C = logits.shape
-            logits = logits.view(B*T, C)
-            targets = targets.view(B*T) # Flatten targets to (B*T)
-            
-            # Calculate Negative Log Likelihood loss (cross-entropy)
-            loss = F.cross_entropy(logits, targets)
-        return logits, loss
-    
-    def generate(self, idx, max_new_tokens):
-        # idx is the current context array of shape (B, T)
-        for _ in range(max_new_tokens):
-            # 1. Forward pass to get predictions for the current context
-            logits, loss = self(idx)
-            
-            # 2. Focus only on the last time step prediction. Shape becomes (B, C)
-            logits = logits[:, -1, :]
-            
-            # 3. Convert raw logits to probabilities
-            probs = F.softmax(logits, dim=-1)
-            
-            # 4. Sample the next token according to the probability distribution. Shape: (B, 1)
-            idx_next = torch.multinomial(probs, num_samples=1)
-            
-            # 5. Append the newly generated token to the running sequence context
-            idx = torch.cat((idx, idx_next), dim=1)
-        return idx
+# Normalize into percentages
+weights = F.softmax(weights, dim=-1)
 
-m = BigramLanguageModel(vocab_size)
-logits, loss = m(xb, yb)
-print(logits.shape)
-print(loss)
-
-# Kick off generation with a 1x1 tensor containing a zero (newline character)
-print(decode(m.generate(torch.zeros((1,1), dtype=torch.long), max_new_tokens=100)[0].tolist()))
+# Execute spatial mixing
+xbow = weights @ x
 #+end_src
 
-#+RESULTS:
-: torch.Size([32, 65])
-: tensor(4.8786, grad_fn=<NllLossBackward0>)
-: 
-: SKIcLT;AcELMoTbvZv C?nq-QE33:CJqkOKH-q;:la!oiywkHjgChzbQ?u!3bLIgwevmyFJGUGp
-: wnYWmnxKWWev-tDqXErVKLgJ
+** Scientific Context & Mathematics
+This is the core of the Transformer engine. 
+1. *Causal Masking*: The upper triangle of the matrix is replaced with $-\infty$. 
+2. *Softmax*: Transforms raw spatial distances into a valid probability distribution. Since $e^{-\infty} = 0$, the future is hardware-blocked, preventing data leakage during training.
+$$ \text{Softmax}(z_i) = \frac{e^{z_i}}{\sum_{j} e^{z_j}} $$
+3. *Matrix Multiplication (Dot Product)*: Computes the spatial alignment between states. 
 
-*** PyTorch Optimizer
-**** Optimization
+[Image of vector dot product geometric interpretation]
+
+$$ \text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}} + M\right)V $$
+
+- *Documentation*: [[https://pytorch.org/docs/stable/generated/torch.nn.functional.softmax.html][torch.nn.functional.softmax]]
+- *Paper*: [[https://arxiv.org/abs/1706.03762][Attention Is All You Need (Vaswani et al., 2017)]]
+
+* Phase 4: Linear Decoding & Autoregressive Generation
+The fully contextualized high-dimensional tensor is routed through a final projection layer (=lm_head=) to decode it back into a flat vocabulary space.
+
+** Implementation
 #+begin_src python :results output :session *nanoGPT-Training*
-# Initialize the AdamW optimizer. It will update the model parameters based on gradients.
-optimizer = torch.optim.AdamW(m.parameters(), lr=1e-3)
-batch_size = 32
+# Decoding the manifold back to vocabulary dimensions
+logits = self.lm_head(x) 
 
-# Standard PyTorch training loop
-for steps in range(100000):
-    # 1. Sample a new batch of data
-    xb, yb = get_batch('train')
-    
-    # 2. Forward pass: evaluate the model and calculate the loss
-    logits, loss = m(xb, yb)
-    
-    # 3. Zero out gradients from the previous step to avoid accumulation
-    optimizer.zero_grad(set_to_none=True)
-    
-    # 4. Backward pass: calculate mathematical gradients for all model parameters
-    loss.backward()
-    
-    # 5. Update the model weights using the calculated gradients
-    optimizer.step()
-    
-print(loss.item())
+# Focus on the temporal edge (the last state)
+logits = logits[:, -1, :] 
+probs = F.softmax(logits, dim=-1)
+
+# Sampling based on calculated physical proximity
+idx_next = torch.multinomial(probs, num_samples=1)
 #+end_src
 
-#+RESULTS:
-: 2.434809923171997
-**** After optimization
-#+begin_src python :results output :session *nanoGPT-Training*
-# Trigger generation using the optimized weights. The output should now somewhat resemble the dataset structure.
-print(decode(m.generate(torch.zeros((1,1), dtype=torch.long), max_new_tokens=500)[0].tolist()))
-#+end_src
-
-#+RESULTS:
-: 
-: 
-: 
-: ASIOMul ofr KI ctowit sesho w
-: Wherbur ndos fak's oureatwh s
-: Th,
-: Isthealerubed;
-: Whin woloprd ara as
-
-**** The mathematical trick in self-attention
-#+begin_src python :results output :session *nanoGPT-Training*
-import torch
-from torch.nn import functional as F
-torch.manual_seed(1337)
-B,T,C = 4,8,2
-x = torch.randn(B,T,C)
-
-#Method 1
-xbow = torch.zeros((B,T,C))
-for b in range(B):
-    for t in range(T):
-        xprev = x[b,:t+1]
-        xbow[b,t] = torch.mean(xprev, 0)
-
-#Method 2
-weights = torch.tril(torch.ones(T, T))
-weights = weights / weights.sum(1, keepdim=True)
-xbow2 = weights @ x        
-print(torch.allclose(xbow, xbow2, atol=1e-6))
-
-torch.manual_seed(42)
-a = torch.tril(torch.ones(3, 3))
-a = a / torch.sum(a, 1, keepdim=True)
-b = torch.randint(0,10,(3,2)).float()
-c = a @ b
-
-#print('a=', end='')
-#print(a)
-#print('--')
-#print('b=', end='')
-#print(b)
-#print('--')
-#print('c=', end='')
-#print(c)
-
-#Method 3
-tril = torch.tril(torch.ones(T,T))
-weight = torch.zeros((T, T))
-weight = weight.masked_fill(tril==0, float('-inf'))
-weight = F.softmax(weight, dim=-1)
-xbow3 = weight @ x
-print(torch.allclose(xbow, xbow3, atol=1e-6))
-#+end_src
-
-#+RESULTS:
-: True
-: True
+** Scientific Context
+The linear layer evaluates the scalar product between the incoming contextualized vector and the frozen weights of the vocabulary. The resulting logits represent the geometric proximity of the context to every possible next token. These logits are compressed by Softmax, creating a categorical probability distribution that is sampled by a multinomial generator to predict the next token.
+- *Documentation*: [[https://pytorch.org/docs/stable/generated/torch.multinomial.html][torch.multinomial]]
