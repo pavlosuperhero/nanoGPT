@@ -1,7 +1,7 @@
 import torch
 import logging
 
-class TrainingBatch:
+class BatchGenerator:
     def __init__(
             self,
             data: torch.Tensor,
