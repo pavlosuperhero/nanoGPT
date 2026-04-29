@@ -1,28 +1,11 @@
-import torch
 from sys import argv
 from sys import exit
-import torch.nn as nn
-from torch.nn import functional as F
+from src.tokenizer.main import Tokenizer
+from src.training.main import TrainingBatch
 
 batch_size = 4
 block_size = 8
 
-class Tokenizer:
-    def __init__(self, corpus: str):
-        self.chars = sorted(list(set(corpus)))
-        self.vocab_size = len(self.chars)
-
-        self.stoi = {ch: i for i, ch in enumerate(self.chars)}
-        self.itos = {i: ch for i, ch in enumerate(self.chars)}
-
-    def encode(self, text: str) -> list[int]:
-        return [self.stoi[c] for c in text]
-
-    def decode(self, indices: list[int]) -> str:
-        return ''.join([self.itos[i] for i in indices])
-
-    def get_tensor(self, text: str) -> torch.Tensor:
-        return torch.tensor(self.encode(text), dtype=torch.long)
     
 def main(file_path: str = ''):
     try:
@@ -33,12 +16,13 @@ def main(file_path: str = ''):
         return
 
     tokenizer = Tokenizer(raw_text)
-
     data_tensor = tokenizer.get_tensor(raw_text)
+    training = TrainingBatch(data=data_tensor, batch_size=batch_size, block_size=block_size)
+    data_batch = training.get_batch('train')
 
-    print(f"Vocab size: {tokenizer.vocab_size}")
-    print(f"Data tensor shape: {data_tensor.shape}")
-    print(f"First 10 tokens: {data_tensor[:10].tolist()}")
+    tokenizer.print_tensor(data_tensor)
+    print('\n---\n')
+    training.print_batch()
 
 if __name__ == "__main__":
     if len(argv) != 2:
