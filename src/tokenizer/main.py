@@ -1,7 +1,9 @@
 import torch
+import logging
 
 class Tokenizer:
     def __init__(self, corpus: str):
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.chars = sorted(list(set(corpus)))
         self.vocab_size = len(self.chars)
 
@@ -18,8 +20,8 @@ class Tokenizer:
         return torch.tensor(self.encode(text), dtype=torch.long)
 
     def print_tensor(self, data: torch.Tensor):
-        print(f"Vocab size: {self.vocab_size}")
-        print(f"Data tensor shape: {data.shape}")
-        print(f"Data tensor dtype: {data.dtype}")
-        print(f"First 10 tokens: {data[:10].tolist()}")
+        self.logger.debug(f"Vocab size: {self.vocab_size}")
+        self.logger.debug(f"Data tensor shape: {data.shape}")
+        self.logger.debug(f"Data tensor dtype: {data.dtype}")
+        self.logger.debug(f"First 10 tokens: {data[:10].tolist()}")
 

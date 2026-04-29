@@ -15,6 +15,8 @@
 wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
 #+end_src
 
+#+RESULTS:
+
 * Theory
 ** General tokinization process
 #+begin_src python :results output :session *nanoGPT*
