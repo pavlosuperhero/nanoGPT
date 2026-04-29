@@ -35,18 +35,24 @@ def main(file_path: str = ''):
     
     model = BigramLanguageModel(tokenizer.vocab_size)
     m = model.to(device)
-    trainer = Trainer(parameters=model.parameters(), learning_rate=learning_rate)
-    trainer.count_loss(max_iters=max_iters, eval_interval=eval_interval, batch_generator=tokenizer, model=model, eval_iters=eval_iter)
+    trainer = Trainer(parameters=model.parameters(), learning_rate=learning_rate, device=device)
+    trainer.count_loss(
+        max_iters=max_iters, 
+        eval_interval=eval_interval, 
+        batch_generator=dataset,
+        model=model, 
+        eval_iters=eval_iter
+    )
     
 
-    tokenizer.print_tensor(data_tensor)
-    print('\n---\n')
-    
-    dataset.print_batch()
-    print('\n---\n')
-    
-    m.print_model(xb, yb)
-    print('\n---\n')
+#    tokenizer.print_tensor(data_tensor)
+#    print('\n---\n')
+#    
+#    dataset.print_batch()
+#    print('\n---\n')
+#    
+#    m.print_model(xb, yb)
+#    print('\n---\n')
     
     
     context = torch.zeros((1,1), dtype=torch.long, device=device)

@@ -3,9 +3,10 @@ import logging
 from torch import nn
 
 class Trainer:
-    def __init__(self, parameters, learning_rate: float):
+    def __init__(self, parameters, learning_rate: float, device: str):
         self.optimizer = torch.optim.AdamW(parameters, lr=learning_rate)
         self.logger = logging.getLogger(self.__class__.__name__)
+        self.device = device
 
 
     @torch.no_grad() 
