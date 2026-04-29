@@ -33,7 +33,7 @@ def main(file_path: str = ''):
     
     xb, yb = dataset.get_batch('train') 
     
-    model = BigramLanguageModel(tokenizer.vocab_size)
+    model = BigramLanguageModel(vocab_size=tokenizer.vocab_size, block_size=block_size)
     m = model.to(device)
     trainer = Trainer(parameters=model.parameters(), learning_rate=learning_rate, device=device)
     trainer.count_loss(
