@@ -1,6 +1,6 @@
 import torch
 import logging
-from torch import nn
+from torch import device, nn
 
 class Trainer:
     def __init__(self, parameters, learning_rate: float, device: str):
@@ -17,7 +17,7 @@ class Trainer:
         for split in ['train', 'val']: 
             losses = torch.zeros(eval_iters)
             for k in range(eval_iters):
-                X, Y = batch_generator.get_batch(split)
+                X, Y = batch_generator.get_batch(split, device=self.device)
                 logits, loss = model(X, Y)
                 losses[k] = loss.item() 
             out[split] = losses.mean()
@@ -31,7 +31,7 @@ class Trainer:
                 losses = self.estimate_loss(model, eval_iters, batch_generator)
                 self.logger.debug(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
 
-            xb, yb = batch_generator.get_batch('train')
+            xb, yb = batch_generator.get_batch('train', device=self.device)
             logits, loss = model(xb, yb)
             self.optimizer.zero_grad(set_to_none=True)
             loss.backward()

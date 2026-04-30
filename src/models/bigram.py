@@ -7,23 +7,34 @@ from src.engine.head import MultiHeadAttention
 from src.engine.feedforward import FeedForward
 
 class BigramLanguageModel(nn.Module):
-    def __init__(self, vocab_size: int, torch_manual_seed: int = 1337, n_embd: int = 32, block_size: int = 8):
+    def __init__(self,
+                 vocab_size: int,
+                 torch_manual_seed: int = 1337,
+                 n_embd: int = 32,
+                 block_size: int = 8,
+                 n_head: int = 4,
+                 n_layer: int = 6,
+                 dropout: float = 0.2):
         super().__init__()
         self.logger = logging.getLogger(self.__class__.__name__)
         torch.manual_seed(torch_manual_seed)
         self.block_size = block_size
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
         self.possition_embedding_table = nn.Embedding(block_size, n_embd)
-        self.blocks = nn.Sequential(
-            Block(n_embd=n_embd, n_head=4),
-            Block(n_embd=n_embd, n_head=4),
-            Block(n_embd=n_embd, n_head=4)
-        )
+        self.blocks = nn.Sequential(*[Block(n_embd=n_embd, n_head=n_head, block_size=block_size, dropout=dropout) for _ in range(n_layer)])
+        self.ln_f = nn.LayerNorm(n_embd)
+        self.lm_head = nn.Linear(n_embd, vocab_size)
+#        self.blocks = nn.Sequential(
+#            Block(n_embd=n_embd, n_head=4, block_size=block_size),
+#            Block(n_embd=n_embd, n_head=4, block_size=block_size),
+#            Block(n_embd=n_embd, n_head=4, block_size=block_size),
+#            nn.LayerNorm(n_embd)
+#        )
 #        self.sa_head = MultiHeadAttention(4,n_embd//4)
 #        self.ffwd = FeedForward(n_embd)
-        self.lm_head = nn.Linear(n_embd, vocab_size)
 
-    def forward(self, idx, targets=None, device: str = 'cpu'):
+    def forward(self, idx, targets=None):
+        device = idx.device
         B, T = idx.shape
         tok_emb = self.token_embedding_table(idx)
         pos_emb = self.possition_embedding_table(torch.arange(T, device=device))

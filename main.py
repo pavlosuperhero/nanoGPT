@@ -10,13 +10,17 @@ from src.models.bigram import BigramLanguageModel
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
-batch_size = 4
-block_size = 8
+batch_size = 64
+block_size = 256
 max_iters = 5000
 eval_interval = 500
-learning_rate=1e-3
+learning_rate=3e-4
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 eval_iter = 200
+n_embd = 384
+n_head = 8
+n_layers = 6
+dropout = 0.2
     
 def main(file_path: str = ''):
     try:
@@ -33,7 +37,14 @@ def main(file_path: str = ''):
     
     xb, yb = dataset.get_batch('train') 
     
-    model = BigramLanguageModel(vocab_size=tokenizer.vocab_size, block_size=block_size)
+    model = BigramLanguageModel(
+        vocab_size=tokenizer.vocab_size, 
+        block_size=block_size,
+        n_embd=n_embd,
+        n_head=n_head,
+        n_layer=n_layers,
+        dropout=dropout
+    )
     m = model.to(device)
     trainer = Trainer(parameters=model.parameters(), learning_rate=learning_rate, device=device)
     trainer.count_loss(
