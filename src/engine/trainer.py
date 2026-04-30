@@ -26,7 +26,7 @@ class Trainer:
         model.train() 
         return out
     def count_loss(self, max_iters: int, eval_interval: int, batch_generator, model, eval_iters: int):
-        gradient_accumulation_steps = 16
+        gradient_accumulation_steps = 11
         
         for iter in range(max_iters):
             if iter % eval_interval == 0:

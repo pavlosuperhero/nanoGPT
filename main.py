@@ -12,8 +12,8 @@ logging.basicConfig(level=logging.DEBUG)
 
 batch_size = 64
 block_size = 1024
-max_iters = 3000
-eval_interval = 500
+max_iters = 1500
+eval_interval = 50
 learning_rate=3e-4
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 eval_iter = 200
