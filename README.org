@@ -24,6 +24,12 @@
 wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
 #+end_src
 
+#+begin_src emacs-lisp :results silent
+(setq-local python-shell-interpreter (expand-file-name ".venv/bin/python")
+
+            org-babel-python-command (expand-file-name ".venv/bin/python"))
+#+end_src
+
 #+RESULTS:
 
 * Architecture Overview
@@ -82,14 +88,25 @@ Tokens in a sequence are initially isolated. Self-attention acts as a dynamic ro
 
 ** Implementation (Mathematical Trick)
 #+begin_src python :results output :session *nanoGPT-Training*
+import torch
 from torch.nn import functional as F
+from torch import nn as nn
 
 B, T, C = 4, 8, 32
 x = torch.randn(B, T, C)
+#Simple head self-attention
+head_size = 16
+key = nn.Linear(C, head_size, bias=False)
+query = nn.Linear(C, head_size, bias=False)
+value = nn.Linear(C, head_size, bias=False)
+
+k = key(x)
+q = query(x)
+weights = q @ k.transpose(-2, -1) #---> (B, T, 16) @ (B, 16, T) --> (B, T, T)
 
 # Lower triangular matrix acts as a causal barrier
 tril = torch.tril(torch.ones(T, T))
-weights = torch.zeros((T, T))
+#weights = torch.zeros((T, T))
 
 # Apply the spatial mask (futures become -inf)
 weights = weights.masked_fill(tril == 0, float('-inf'))
@@ -98,8 +115,15 @@ weights = weights.masked_fill(tril == 0, float('-inf'))
 weights = F.softmax(weights, dim=-1)
 
 # Execute spatial mixing
-xbow = weights @ x
+v = value(x)
+out = weights @ v
+#out = weights @ x
+
+print(out.shape)
 #+end_src
+
+#+RESULTS:
+: torch.Size([4, 8, 16])
 
 ** Scientific Context & Mathematics
 This is the core of the Transformer engine. 
