@@ -11,8 +11,8 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 batch_size = 64
-block_size = 256
-max_iters = 5000
+block_size = 1024
+max_iters = 3000
 eval_interval = 500
 learning_rate=3e-4
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -68,7 +68,7 @@ def main(file_path: str = ''):
     
     context = torch.zeros((1,1), dtype=torch.long, device=device)
 
-    print(tokenizer.decode(m.generate(context, max_new_tokens=100)[0].tolist()))
+    print(tokenizer.decode(m.generate(context, max_new_tokens=10000)[0].tolist()))
 
 
 

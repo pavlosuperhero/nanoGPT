@@ -2,40 +2,35 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-class Head(nn.Module):
-
-    def __init__(self, head_size, n_embd: int = 32, block_size: int = 8, dropout: float = 0.2):
-        super().__init__()
-        self.key = nn.Linear(n_embd, head_size, bias=False)
-        self.query = nn.Linear(n_embd, head_size, bias=False)
-        self.value = nn.Linear(n_embd, head_size, bias=False)
-
-        self.register_buffer('tril', torch.tril(torch.ones(block_size, block_size)))
-        self.dropout = nn.Dropout(dropout)
-
-
-    def forward(self, x):
-        B,T,C = x.shape
-        k = self.key(x)
-        q = self.query(x)
-
-        head_size = k.shape[-1]
-        weights = q @ k.transpose(-2, -1) * (head_size ** -0.5)
-        weights = weights.masked_fill(self.tril[:T,:T] == 0, float('-inf'))
-        weights = F.softmax(weights, dim=-1)
-        weights = self.dropout(weights)
-        v = self.value(x)
-        out = weights @ v
-        return out
-        
 class MultiHeadAttention(nn.Module):
     def __init__(self, num_heads, head_size, n_embd, block_size: int = 8, dropout: float = 0.2):
         super().__init__()
-        self.heads = nn.ModuleList([Head(n_embd=n_embd, head_size=head_size, block_size=block_size) for _ in range(num_heads)])
+        self.n_head = num_heads
+        self.n_embd = n_embd
+        self.dropout_p = dropout
+
+        self.query = nn.Linear(n_embd, n_embd, bias=False)
+        self.key = nn.Linear(n_embd, n_embd, bias=False)
+        self.value = nn.Linear(n_embd, n_embd, bias=False)
+
         self.proj = nn.Linear(n_embd, n_embd)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
-        out = torch.cat([h(x) for h in self.heads], dim=-1)
+        B, T, C = x.size()
+
+        q = self.query(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
+        k = self.key(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
+        v = self.value(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
+
+        out = F.scaled_dot_product_attention(
+            q, k, v, 
+            attn_mask=None, 
+            dropout_p=self.dropout_p if self.training else 0.0, 
+            is_causal=True
+        )
+
+        out = out.transpose(1, 2).contiguous().view(B, T, C)
+
         out = self.dropout(self.proj(out))
         return out
