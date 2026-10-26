@@ -1,0 +1,6 @@
+{
+    packages = {
+        "/Users/Pavlo_Fabuliak/.xmake/packages/n/ninja/v1.13.2/e4c07175a7f24d369e946af97b47dc8e",
+        "/Users/Pavlo_Fabuliak/.xmake/packages/y/yaml-cpp/0.8.0/de7dde269b31490e9eca3951fc369bf6"
+    }
+}

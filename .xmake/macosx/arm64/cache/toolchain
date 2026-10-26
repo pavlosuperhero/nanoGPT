@@ -1,0 +1,106 @@
+{
+    go_arch_arm64_plat_macosx = {
+        __global = true,
+        plat = "macosx",
+        __checked = true,
+        arch = "arm64"
+    },
+    zig_arch_arm64_plat_macosx = {
+        __global = true,
+        plat = "macosx",
+        __checked = false,
+        arch = "arm64"
+    },
+    cuda_arch_arm64_plat_macosx = {
+        __global = true,
+        plat = "macosx",
+        __checked = true,
+        arch = "arm64"
+    },
+    fpc_arch_arm64_plat_macosx = {
+        __global = true,
+        plat = "macosx",
+        __checked = true,
+        arch = "arm64"
+    },
+    envs_arch_arm64_plat_macosx = {
+        __global = true,
+        plat = "macosx",
+        __checked = true,
+        arch = "arm64"
+    },
+    nim_arch_arm64_plat_macosx = {
+        __global = true,
+        plat = "macosx",
+        __checked = false,
+        arch = "arm64"
+    },
+    gfortran_arch_arm64_plat_macosx = {
+        __global = true,
+        plat = "macosx",
+        __checked = true,
+        arch = "arm64"
+    },
+    tool_target_nanoGPT_macosx_arm64_cxx = {
+        program = "/Library/Developer/CommandLineTools/usr/bin/clang++",
+        toolchain_info = {
+            name = "xcode",
+            cachekey = "xcode_arch_arm64_plat_macosx",
+            plat = "macosx",
+            arch = "arm64"
+        },
+        toolname = "clangxx"
+    },
+    gcc_arch_arm64_plat_macosx = {
+        __global = true,
+        plat = "macosx",
+        arch = "arm64"
+    },
+    nasm_arch_arm64_plat_macosx = {
+        __global = true,
+        plat = "macosx",
+        __checked = true,
+        arch = "arm64"
+    },
+    xcode_arch_arm64_plat_macosx = {
+        plat = "macosx",
+        bindir = "/Library/Developer/CommandLineTools/usr/bin",
+        __checked = true,
+        xcode_sysroot = "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+        __global = true,
+        arch = "arm64"
+    },
+    clang_arch_arm64_plat_macosx = {
+        __global = true,
+        plat = "macosx",
+        arch = "arm64"
+    },
+    yasm_arch_arm64_plat_macosx = {
+        __global = true,
+        plat = "macosx",
+        __checked = true,
+        arch = "arm64"
+    },
+    rust_arch_arm64_plat_macosx = {
+        __global = true,
+        plat = "macosx",
+        __checked = true,
+        arch = "arm64"
+    },
+    tool_target_nanoGPT_macosx_arm64_ld = {
+        program = "/Library/Developer/CommandLineTools/usr/bin/clang++",
+        toolchain_info = {
+            name = "xcode",
+            plat = "macosx",
+            cachekey = "xcode_arch_arm64_plat_macosx",
+            arch = "arm64"
+        },
+        toolname = "clangxx"
+    },
+    dotnet_arch_arm64_plat_macosx = {
+        __global = true,
+        plat = "macosx",
+        __checked = false,
+        arch = "arm64"
+    }
+}

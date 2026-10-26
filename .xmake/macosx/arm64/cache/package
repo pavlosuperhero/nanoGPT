@@ -1,0 +1,21 @@
+{
+    ["yaml-cpp"] = {
+        static = true,
+        links = "yaml-cpp",
+        libfiles = "/Users/Pavlo_Fabuliak/.xmake/packages/y/yaml-cpp/0.8.0/de7dde269b31490e9eca3951fc369bf6/lib/libyaml-cpp.a",
+        sysincludedirs = "/Users/Pavlo_Fabuliak/.xmake/packages/y/yaml-cpp/0.8.0/de7dde269b31490e9eca3951fc369bf6/include",
+        envs = {
+            PATH = {
+                "/Users/Pavlo_Fabuliak/.xmake/packages/y/yaml-cpp/0.8.0/de7dde269b31490e9eca3951fc369bf6/bin",
+                "/Users/Pavlo_Fabuliak/.xmake/packages/n/ninja/v1.13.2/e4c07175a7f24d369e946af97b47dc8e/bin",
+                "/Users/Pavlo_Fabuliak/.xmake/packages/c/cmake/4.3.4/1213fa578227478d8e59a3a8b352b454/bin"
+            }
+        },
+        installdir = "/Users/Pavlo_Fabuliak/.xmake/packages/y/yaml-cpp/0.8.0/de7dde269b31490e9eca3951fc369bf6",
+        linkdirs = "/Users/Pavlo_Fabuliak/.xmake/packages/y/yaml-cpp/0.8.0/de7dde269b31490e9eca3951fc369bf6/lib",
+        __requirestr = "yaml-cpp",
+        license = "MIT",
+        __enabled = true,
+        version = "0.8.0"
+    }
+}
